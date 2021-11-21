@@ -2,47 +2,55 @@
 
 pragma solidity ^0.8.0;
 
-contract VolcanoCoin {
-    
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+
+contract VolcanoCoin is ERC20, Ownable {
+
     struct Payment{
         address recipient;
         uint amount;
     }
-    
+
+    Payment payment;
     uint total_supply = 10000;
-    address owner;
-    mapping(address => uint) balance;
-    mapping(address => Payment[]) payments;
-    
+    mapping(address => Payment[]) public payments;
+
     event supply_increase(uint);
     event token_transfer(address, uint);
-    
-    constructor(){
-        owner = msg.sender;
-        balance[owner] = total_supply;
+
+    constructor() ERC20("VolcanoCoin", "VOL"){
+        _mint(msg.sender, 10000);
     }
-    
-    modifier onlyOwner {
-        if(msg.sender == owner){
-            _;
-        }
-    }
-    
+
     function getTotalSupply() public view returns (uint){
         return total_supply;
     }
-    
+
     function increaseTotalSupply() public onlyOwner {
         total_supply += 1000;
         emit supply_increase(total_supply);
     }
-    
-    function getUserBalance(address _userAddress) public view returns (uint){
-        return balance[_userAddress];
+
+    function transfer(address _transferToAddress, uint _amount) public virtual override returns (bool) {
+        _transfer(msg.sender, _transferToAddress, _amount);
+        
+        emit token_transfer(_transferToAddress, _amount);
+        
+        createPaymentRecord(msg.sender, _transferToAddress, _amount);
+        
+        return true;
     }
     
-    function transfer(address _transferToAddress, uint _amount) public {
-        payable(_transferToAddress).transfer(_amount);
-        emit token_transfer(_transferToAddress, _amount);
+    function createPaymentRecord(address _senderAddr, address _recipientAddr, uint _amountSent) private {
+        payment.recipient = _recipientAddr;
+        payment.amount = _amountSent;
+        
+        payments[_senderAddr].push(payment);
+    }
+    
+    function mintTokens(uint _numberOfTokens) public onlyOwner {
+        _mint(msg.sender, _numberOfTokens);
     }
 }
